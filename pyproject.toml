@@ -1,0 +1,9 @@
+[project]
+name = "vertigo"
+version = "0.1.0"
+description = "PyWeek 40 Entry"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "panda3d>=1.10.15",
+]
