@@ -3,7 +3,7 @@ import sys
 from direct.showbase.ShowBase import ShowBase
 from direct.showbase.ShowBaseGlobal import globalClock
 from direct.showbase.InputStateGlobal import inputState
-from panda3d.bullet import BulletPlaneShape, BulletRigidBodyNode, BulletWorld, BulletCapsuleShape, BulletCharacterControllerNode, ZUp
+from panda3d.bullet import BulletPlaneShape, BulletRigidBodyNode, BulletWorld, BulletCapsuleShape, BulletBoxShape, BulletCharacterControllerNode, BulletDebugNode, ZUp
 from panda3d.core import Vec3, CardMaker, TextureStage, DirectionalLight, AmbientLight, WindowProperties
 
 
@@ -27,14 +27,26 @@ class GameScene:
         self.game_settings = game_settings
 
         self.world.setGravity(Vec3(0, 0, -self.game_settings.gravity))
+        debug_node = BulletDebugNode('Debug')
+        debug_node.showWireframe(True)
+        debug_node.showConstraints(True)
+        debug_node.showBoundingBoxes(True)
+        debug_node.showNormals(True)
+        debug_np = self.render.attachNewNode(debug_node)
+        # debug_np.show()   
+        self.world.setDebugNode(debug_np.node())
         self.setup_window()
         self.setup_light()
         self.setup_ground()
         self.setup_player()
         self.setup_controls()
+        self.setup_skyscrapers()
+
+        self.render.ls()
 
     def setup_window(self):
         props = WindowProperties()
+        # props.setFullscreen(True)
         props.setCursorHidden(True)
         props.setMouseMode(WindowProperties.M_relative)
         self.win.requestProperties(props)
@@ -52,21 +64,21 @@ class GameScene:
 
     def setup_ground(self):
         self.ground_n = BulletRigidBodyNode('Ground')
-        self.ground_n.addShape(BulletPlaneShape(Vec3(0, 0, 1), 1))
+        self.ground_n.addShape(BulletPlaneShape(Vec3(0, 0, 1), 0))
         self.ground_np = self.render.attachNewNode(self.ground_n)
-        self.ground_np.setPos(0, 0, -2)
+        self.ground_np.setPos(0, 0, 0)
         ground_cm = CardMaker('ground_card')
         ground_cm.setFrame(-500, 500, -500, 500) 
         ground_vis = self.ground_np.attachNewNode(ground_cm.generate())
         ground_vis.setHpr(0, -90, 0)   
-        ground_vis.setPos(0, 0, 1) 
+        ground_vis.setPos(0, 0, 0) 
         ground_tex = self.loader.loadTexture("maps/grid.rgb")  
         ground_vis.setTexture(ground_tex)
         ground_vis.setTexScale(TextureStage.getDefault(), 50, 50)
         self.world.attachRigidBody(self.ground_n)
     
     def setup_player(self):
-        self.player_n = BulletCharacterControllerNode(BulletCapsuleShape(0.4, 1.0, ZUp), 0.4, "Player")
+        self.player_n = BulletCharacterControllerNode(BulletCapsuleShape(1.5, 1.0, ZUp), 1.5, "Player")
         self.player_np = self.render.attachNewNode(self.player_n)
         self.player_np.setPos(0, 0, 2)
         self.player_n.setGravity(self.game_settings.gravity)
@@ -75,7 +87,7 @@ class GameScene:
         self.world.attachCharacter(self.player_n)
 
         self.camera.reparentTo(self.player_np)
-        self.camera.setPos(0, 0, 1.5)  
+        self.camera.setPos(0, 0, 0.9)  
 
         self.pitch = 0  
     
@@ -86,6 +98,21 @@ class GameScene:
         inputState.watchWithModifiers("right", "d")
         inputState.watchWithModifiers("jump", "space")
         inputState.watchWithModifiers("sprint", "shift")
+
+    def setup_skyscrapers(self):
+        h = 2
+        box_shape = BulletBoxShape(Vec3(10, 10, h))  
+        box_node = BulletRigidBodyNode('Box')
+        box_node.setMass(0)  
+        box_node.addShape(box_shape)
+        box_np = self.render.attachNewNode(box_node)
+        box_np.setPos(0, 5, h) 
+        self.world.attachRigidBody(box_node)
+        box_model = self.loader.loadModel('models/box.egg')
+        box_model.setScale(Vec3(20, 20, 2*h))
+        box_model.reparentTo(box_np)
+        box_model.setPos(Vec3(-10, -10, -h))
+
 
     def process_mouse(self):
         md = self.win.getPointer(0)
