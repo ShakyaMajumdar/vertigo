@@ -10,7 +10,8 @@ from panda3d.core import Vec3, CardMaker, TextureStage, DirectionalLight, Ambien
 @dataclass
 class GameSettings:
     speed: float = 20
-    gravity: float = 9.81
+    sprint_speed: float = 40
+    gravity: float = 2*9.81
     jump_height: float = 0.7
     jump_speed: float = 10
     mouse_sensitivity = 0.1
@@ -55,13 +56,13 @@ class GameScene:
         self.ground_np = self.render.attachNewNode(self.ground_n)
         self.ground_np.setPos(0, 0, -2)
         ground_cm = CardMaker('ground_card')
-        ground_cm.setFrame(-50, 50, -50, 50) 
+        ground_cm.setFrame(-500, 500, -500, 500) 
         ground_vis = self.ground_np.attachNewNode(ground_cm.generate())
         ground_vis.setHpr(0, -90, 0)   
         ground_vis.setPos(0, 0, 1) 
         ground_tex = self.loader.loadTexture("maps/grid.rgb")  
         ground_vis.setTexture(ground_tex)
-        ground_vis.setTexScale(TextureStage.getDefault(), 5, 5)
+        ground_vis.setTexScale(TextureStage.getDefault(), 50, 50)
         self.world.attachRigidBody(self.ground_n)
     
     def setup_player(self):
@@ -84,6 +85,7 @@ class GameScene:
         inputState.watchWithModifiers("left", "a")
         inputState.watchWithModifiers("right", "d")
         inputState.watchWithModifiers("jump", "space")
+        inputState.watchWithModifiers("sprint", "shift")
 
     def process_mouse(self):
         md = self.win.getPointer(0)
@@ -116,8 +118,11 @@ class GameScene:
         dir_world = quat.xform(direction)
         dir_world.setZ(0)
         dir_world.normalize()
-
-        self.player_n.setLinearMovement(dir_world * self.game_settings.speed, False)
+        if inputState.isSet("sprint"):
+            vel = dir_world * self.game_settings.sprint_speed
+        else:
+            vel = dir_world * self.game_settings.speed
+        self.player_n.setLinearMovement(vel, False)
 
         if inputState.isSet("jump"):
             if self.player_n.isOnGround():
