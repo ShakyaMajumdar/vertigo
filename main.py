@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+import random
 import sys
 from direct.showbase.ShowBase import ShowBase
 from direct.showbase.ShowBaseGlobal import globalClock
@@ -42,7 +43,7 @@ class GameScene:
         self.setup_controls()
         self.setup_skyscrapers()
 
-        self.render.ls()
+        # self.render.ls()
 
     def setup_window(self):
         props = WindowProperties()
@@ -100,13 +101,16 @@ class GameScene:
         inputState.watchWithModifiers("sprint", "shift")
 
     def setup_skyscrapers(self):
-        h = 2
+        for _ in range(10):
+            self.setup_skyscraper(h=random.randint(1, 3), x=random.randint(-100, 100), y=random.randint(-100, 100))
+    
+    def setup_skyscraper(self, h, x, y):
         box_shape = BulletBoxShape(Vec3(10, 10, h))  
-        box_node = BulletRigidBodyNode('Box')
+        box_node = BulletRigidBodyNode(f'Box {x} {y}')
         box_node.setMass(0)  
         box_node.addShape(box_shape)
         box_np = self.render.attachNewNode(box_node)
-        box_np.setPos(0, 5, h) 
+        box_np.setPos(x, y, h) 
         self.world.attachRigidBody(box_node)
         box_model = self.loader.loadModel('models/box.egg')
         box_model.setScale(Vec3(20, 20, 2*h))
