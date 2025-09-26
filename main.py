@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-import random
+import itertools
 import sys
 from direct.showbase.ShowBase import ShowBase
 from direct.showbase.ShowBaseGlobal import globalClock
@@ -7,6 +7,7 @@ from direct.showbase.InputStateGlobal import inputState
 from panda3d.bullet import BulletPlaneShape, BulletRigidBodyNode, BulletWorld, BulletCapsuleShape, BulletBoxShape, BulletCharacterControllerNode, BulletDebugNode, ZUp
 from panda3d.core import Vec2, Vec3, CardMaker, TextureStage, DirectionalLight, AmbientLight, WindowProperties, NodePath
 
+id_counter = itertools.count()
 
 @dataclass
 class GameSettings:
@@ -24,6 +25,7 @@ class Run:
 
 @dataclass
 class Skyscraper:
+    id: int
     node_path: NodePath
     pos: Vec2
     scale: Vec3
@@ -57,6 +59,9 @@ class GameScene:
         self.setup_skyscrapers()
 
         # self.render.ls()
+    
+    def setup_collisions(self):
+        self.current_collisions = set()
 
     def setup_window(self):
         props = WindowProperties()
@@ -114,15 +119,19 @@ class GameScene:
         inputState.watchWithModifiers("sprint", "shift")
 
     def setup_skyscrapers(self):
-        self.setup_skyscraper(
-            Skyscraper(
-                node_path=self.render.attachNewNode(BulletRigidBodyNode(f'Skyscraper 000')),
-                pos=Vec3(0, 0, 0),
-                scale=Vec3(10, 10, 20),
-                ttl=10,
-                model=self.loader.loadModel('models/box.egg')
-            )
+        home_ss_id = next(id_counter)
+        home_ss = Skyscraper(
+            id=home_ss_id,
+            node_path=self.render.attachNewNode(BulletRigidBodyNode(f'Skyscraper#{home_ss_id}')),
+            pos=Vec3(0, 0, 0),
+            scale=Vec3(10, 10, 20),
+            ttl=10,
+            model=self.loader.loadModel('models/box.egg')
         )
+        skyscrapers = [home_ss]
+        self.skyscrapers = {ss.id: ss for ss in skyscrapers}
+        for ss in self.skyscrapers.values():
+            self.setup_skyscraper(ss)
         # self.setup_skyscraper(h=20, x=0, y=0)
         # for _ in range(10):
         #     self.setup_skyscraper(h=random.randint(15, 20), x=random.randint(-100, 100), y=random.randint(-100, 100))
@@ -181,6 +190,26 @@ class GameScene:
             if self.player_n.isOnGround():
                 self.player_n.doJump()
 
+    def process_collisions(self):
+        new_collisions = set()
+        result = self.world.contactTest(self.player_n)
+        for contact in result.getContacts():
+            n0, n1 = contact.getNode0(), contact.getNode1()
+            other = n1 if n0.getName() == "Player" else n0
+            new_collisions.add(other.getName())
+            if other.getName() not in self.current_collisions:
+                if other.getName().startswith("Skyscraper"):
+                    self.on_player_hit_skyscraper(other)
+                elif other.getName() == "Ground":
+                    self.on_player_hit_ground(other)
+        self.current_collisions = new_collisions
+
+    def on_player_hit_skyscraper(self, node):
+        print("Player collided with skyscraper:", node.getName())
+
+    def on_player_hit_ground(self, node):
+        print("Player collided with ground:", node.getName())
+
     def update_forward_force(self):
         self.run.forward_force += 0.0000
 
@@ -194,6 +223,7 @@ class GameScene:
         self.update_forward_force()
         self.update_score()
         self.world.doPhysics(dt)
+        self.process_collisions()
         return task.cont
 
 
