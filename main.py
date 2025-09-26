@@ -17,6 +17,7 @@ class GameSettings:
     jump_height: float = 0.7
     jump_speed: float = 10
     mouse_sensitivity = 0.1
+    forward_force_rate = 0.0001
 
 @dataclass
 class Run:
@@ -29,8 +30,9 @@ class Skyscraper:
     node_path: NodePath
     pos: Vec2
     scale: Vec3
-    ttl: float
+    ttl: int
     model: NodePath
+    timer_triggered: bool = False
 
 class GameScene:
     def __init__(self, world, render, loader, camera, win, game_settings: GameSettings, run: Run):
@@ -125,11 +127,10 @@ class GameScene:
             node_path=self.render.attachNewNode(BulletRigidBodyNode(f'Skyscraper#{home_ss_id}')),
             pos=Vec3(0, 0, 0),
             scale=Vec3(10, 10, 20),
-            ttl=10,
+            ttl=100,
             model=self.loader.loadModel('models/box.egg')
         )
-        skyscrapers = [home_ss]
-        self.skyscrapers = {ss.id: ss for ss in skyscrapers}
+        self.skyscrapers = {ss.id: ss for ss in [home_ss]}
         for ss in self.skyscrapers.values():
             self.setup_skyscraper(ss)
         # self.setup_skyscraper(h=20, x=0, y=0)
@@ -206,12 +207,27 @@ class GameScene:
 
     def on_player_hit_skyscraper(self, node):
         print("Player collided with skyscraper:", node.getName())
+        ss = self.skyscrapers[int(node.getName().split("#")[1])]
+        if not ss.timer_triggered:
+            ss.timer_triggered = True
 
     def on_player_hit_ground(self, node):
         print("Player collided with ground:", node.getName())
 
+    def update_skyscrapers(self):
+        new_ss = {}
+        for id, ss in self.skyscrapers.items():
+            if ss.timer_triggered:
+                ss.ttl -= 1
+            if ss.ttl > 0:
+                new_ss[id] = ss
+            else:
+                self.world.remove(ss.node_path.node())
+                ss.node_path.removeNode()
+        self.skyscrapers = new_ss
+
     def update_forward_force(self):
-        self.run.forward_force += 0.0000
+        self.run.forward_force += self.game_settings.forward_force_rate
 
     def update_score(self):
         self.run.score += 0.1        
@@ -220,6 +236,7 @@ class GameScene:
         dt = globalClock.getDt()
         self.process_mouse()
         self.process_movement(dt)
+        self.update_skyscrapers()
         self.update_forward_force()
         self.update_score()
         self.world.doPhysics(dt)
