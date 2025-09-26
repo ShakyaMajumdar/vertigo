@@ -17,15 +17,21 @@ class GameSettings:
     jump_speed: float = 10
     mouse_sensitivity = 0.1
 
+@dataclass
+class Run:
+    forward_force: float = 0.1
+    score: float = 0.0
+
 
 class GameScene:
-    def __init__(self, world, render, loader, camera, win, game_settings: GameSettings):
+    def __init__(self, world, render, loader, camera, win, game_settings: GameSettings, run: Run):
         self.render = render
         self.loader = loader
         self.world = world
         self.camera = camera
         self.win = win
         self.game_settings = game_settings
+        self.run = run
 
         self.world.setGravity(Vec3(0, 0, -self.game_settings.gravity))
         debug_node = BulletDebugNode('Debug')
@@ -81,7 +87,7 @@ class GameScene:
     def setup_player(self):
         self.player_n = BulletCharacterControllerNode(BulletCapsuleShape(1.5, 1.0, ZUp), 1.5, "Player")
         self.player_np = self.render.attachNewNode(self.player_n)
-        self.player_np.setPos(0, 0, 2)
+        self.player_np.setPos(0, 0, 50)
         self.player_n.setGravity(self.game_settings.gravity)
         self.player_n.setMaxJumpHeight(self.game_settings.jump_height)
         self.player_n.setJumpSpeed(self.game_settings.jump_speed)
@@ -101,8 +107,9 @@ class GameScene:
         inputState.watchWithModifiers("sprint", "shift")
 
     def setup_skyscrapers(self):
-        for _ in range(10):
-            self.setup_skyscraper(h=random.randint(1, 3), x=random.randint(-100, 100), y=random.randint(-100, 100))
+        self.setup_skyscraper(h=20, x=0, y=0)
+        # for _ in range(10):
+        #     self.setup_skyscraper(h=random.randint(15, 20), x=random.randint(-100, 100), y=random.randint(-100, 100))
     
     def setup_skyscraper(self, h, x, y):
         box_shape = BulletBoxShape(Vec3(10, 10, h))  
@@ -143,6 +150,8 @@ class GameScene:
         if inputState.isSet("right"):
             direction.x += 1
 
+        direction.y += self.run.forward_force
+
         direction.normalize()
 
         quat = self.player_np.getQuat(self.render)
@@ -158,12 +167,19 @@ class GameScene:
         if inputState.isSet("jump"):
             if self.player_n.isOnGround():
                 self.player_n.doJump()
-        
+
+    def update_forward_force(self):
+        self.run.forward_force += 0.0001
+
+    def update_score(self):
+        self.run.score += 0.1        
 
     def update(self, task):
         dt = globalClock.getDt()
         self.process_mouse()
         self.process_movement(dt)
+        self.update_forward_force()
+        self.update_score()
         self.world.doPhysics(dt)
         return task.cont
 
@@ -173,7 +189,7 @@ class App(ShowBase):
         super().__init__()
         self.accept("escape", self.exit_app)
         self.disableMouse()
-        game_scene = GameScene(BulletWorld(), self.render, self.loader, self.camera, self.win, GameSettings())
+        game_scene = GameScene(BulletWorld(), self.render, self.loader, self.camera, self.win, GameSettings(), Run())
         self.taskMgr.add(game_scene.update, 'update')
     
     def exit_app(self):
