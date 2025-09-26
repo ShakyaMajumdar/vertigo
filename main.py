@@ -5,7 +5,7 @@ from direct.showbase.ShowBase import ShowBase
 from direct.showbase.ShowBaseGlobal import globalClock
 from direct.showbase.InputStateGlobal import inputState
 from panda3d.bullet import BulletPlaneShape, BulletRigidBodyNode, BulletWorld, BulletCapsuleShape, BulletBoxShape, BulletCharacterControllerNode, BulletDebugNode, ZUp
-from panda3d.core import Vec3, CardMaker, TextureStage, DirectionalLight, AmbientLight, WindowProperties
+from panda3d.core import Vec2, Vec3, CardMaker, TextureStage, DirectionalLight, AmbientLight, WindowProperties, NodePath
 
 
 @dataclass
@@ -19,9 +19,16 @@ class GameSettings:
 
 @dataclass
 class Run:
-    forward_force: float = 0.1
+    forward_force: float = 0
     score: float = 0.0
 
+@dataclass
+class Skyscraper:
+    node_path: NodePath
+    pos: Vec2
+    scale: Vec3
+    ttl: float
+    model: NodePath
 
 class GameScene:
     def __init__(self, world, render, loader, camera, win, game_settings: GameSettings, run: Run):
@@ -107,23 +114,29 @@ class GameScene:
         inputState.watchWithModifiers("sprint", "shift")
 
     def setup_skyscrapers(self):
-        self.setup_skyscraper(h=20, x=0, y=0)
+        self.setup_skyscraper(
+            Skyscraper(
+                node_path=self.render.attachNewNode(BulletRigidBodyNode(f'Skyscraper 000')),
+                pos=Vec3(0, 0, 0),
+                scale=Vec3(10, 10, 20),
+                ttl=10,
+                model=self.loader.loadModel('models/box.egg')
+            )
+        )
+        # self.setup_skyscraper(h=20, x=0, y=0)
         # for _ in range(10):
         #     self.setup_skyscraper(h=random.randint(15, 20), x=random.randint(-100, 100), y=random.randint(-100, 100))
     
-    def setup_skyscraper(self, h, x, y):
-        box_shape = BulletBoxShape(Vec3(10, 10, h))  
-        box_node = BulletRigidBodyNode(f'Box {x} {y}')
-        box_node.setMass(0)  
-        box_node.addShape(box_shape)
-        box_np = self.render.attachNewNode(box_node)
-        box_np.setPos(x, y, h) 
-        self.world.attachRigidBody(box_node)
-        box_model = self.loader.loadModel('models/box.egg')
-        box_model.setScale(Vec3(20, 20, 2*h))
-        box_model.reparentTo(box_np)
-        box_model.setPos(Vec3(-10, -10, -h))
-
+    def setup_skyscraper(self, ss: Skyscraper):
+        ss_shape = BulletBoxShape(ss.scale)
+        ss_node = ss.node_path.node()
+        ss_node.setMass(0)  
+        ss_node.addShape(ss_shape)
+        ss.node_path.setPos(ss.pos.x, ss.pos.y, ss.scale.z)
+        self.world.attachRigidBody(ss_node)
+        ss.model.setScale(ss.scale*2.0)
+        ss.model.reparentTo(ss.node_path)
+        ss.model.setPos(ss.pos.x-ss.scale.x, ss.pos.y-ss.scale.y, -ss.scale.z)
 
     def process_mouse(self):
         md = self.win.getPointer(0)
@@ -169,7 +182,7 @@ class GameScene:
                 self.player_n.doJump()
 
     def update_forward_force(self):
-        self.run.forward_force += 0.0001
+        self.run.forward_force += 0.0000
 
     def update_score(self):
         self.run.score += 0.1        
