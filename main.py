@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 import itertools
+import random
 import sys
 from direct.showbase.ShowBase import ShowBase
 from direct.showbase.ShowBaseGlobal import globalClock
@@ -17,7 +18,7 @@ class GameSettings:
     jump_height: float = 0.7
     jump_speed: float = 10
     mouse_sensitivity = 0.1
-    forward_force_rate = 0.0001
+    forward_force_rate = 0 # 0.0001
 
 @dataclass
 class Run:
@@ -52,7 +53,7 @@ class GameScene:
         debug_node.showBoundingBoxes(True)
         debug_node.showNormals(True)
         debug_np = self.render.attachNewNode(debug_node)
-        # debug_np.show()   
+        debug_np.show()   
         self.world.setDebugNode(debug_np.node())
         self.setup_window()
         self.setup_ui()
@@ -135,15 +136,12 @@ class GameScene:
             node_path=self.render.attachNewNode(BulletRigidBodyNode(f'Skyscraper#{home_ss_id}')),
             pos=Vec3(0, 0, 0),
             scale=Vec3(10, 10, 20),
-            ttl=100,
+            ttl=50000,
             model=self.loader.loadModel('models/box.egg')
         )
-        self.skyscrapers = {ss.id: ss for ss in [home_ss]}
+        self.skyscrapers = {home_ss_id: home_ss}
         for ss in self.skyscrapers.values():
             self.setup_skyscraper(ss)
-        # self.setup_skyscraper(h=20, x=0, y=0)
-        # for _ in range(10):
-        #     self.setup_skyscraper(h=random.randint(15, 20), x=random.randint(-100, 100), y=random.randint(-100, 100))
     
     def setup_skyscraper(self, ss: Skyscraper):
         ss_shape = BulletBoxShape(ss.scale)
@@ -212,12 +210,46 @@ class GameScene:
                 elif other.getName() == "Ground":
                     self.on_player_hit_ground(other)
         self.current_collisions = new_collisions
+    
+    def spawn_neighbours(self, ss: Skyscraper):
+        n_attempts = random.randint(1, 3)
+        for _ in range(n_attempts):
+            dx = random.randint(5, 10) 
+            dy = random.randint(5, 10)
+            sx = random.randint(5, 12)
+            sy = random.randint(5, 12)
+            sz = random.randint(2, 2) * 10
+            if random.random() > 0.5:
+                px = ss.pos.x + ss.scale.x/2 + dx
+            else:
+                px = ss.pos.x - ss.scale.x/2 - dx
+            if random.random() > 0.5:
+                py = ss.pos.y + ss.scale.y/2 + dy
+            else:
+                py = ss.pos.y - ss.scale.y/2 - dy
+            print(px, py, sx, sy, sz)
+            if not self.intersects_ss(Vec2(px, py), Vec2(sx, sy)):
+                ss_id = next(id_counter)
+                ss = Skyscraper(
+                    id=ss_id,
+                    node_path=self.render.attachNewNode(BulletRigidBodyNode(f'Skyscraper#{ss_id}')),
+                    pos=Vec3(px, py, 0),
+                    scale=Vec3(sx, sy, sz),
+                    ttl=50000,
+                    model=self.loader.loadModel('models/box.egg')
+                )
+                self.skyscrapers[ss_id] = ss
+                self.setup_skyscraper(ss)
+
+    def intersects_ss(self, pos, scale):
+        return False
 
     def on_player_hit_skyscraper(self, node):
         print("Player collided with skyscraper:", node.getName())
         ss = self.skyscrapers[int(node.getName().split("#")[1])]
         if not ss.timer_triggered:
             ss.timer_triggered = True
+            self.spawn_neighbours(ss)
 
     def on_player_hit_ground(self, node):
         print("Player collided with ground:", node.getName())
@@ -236,10 +268,12 @@ class GameScene:
 
     def update_forward_force(self):
         self.run.forward_force += self.game_settings.forward_force_rate
-
+    def f(self):
+        p = self.player_np.getPos()
+        return f"{round(p.x)} {round(p.y)} {round(p.z)}"
     def update_score(self):
         self.run.score += 0.1        
-        self.score_node.set_text(f"SCORE: {round(self.run.score)}")
+        self.score_node.set_text(f"SCORE: {round(self.run.score)} {self.f()}")
 
     def update(self, task):
         dt = globalClock.getDt()
