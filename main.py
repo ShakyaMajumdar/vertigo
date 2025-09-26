@@ -5,7 +5,7 @@ from direct.showbase.ShowBase import ShowBase
 from direct.showbase.ShowBaseGlobal import globalClock
 from direct.showbase.InputStateGlobal import inputState
 from panda3d.bullet import BulletPlaneShape, BulletRigidBodyNode, BulletWorld, BulletCapsuleShape, BulletBoxShape, BulletCharacterControllerNode, BulletDebugNode, ZUp
-from panda3d.core import Vec2, Vec3, CardMaker, TextureStage, DirectionalLight, AmbientLight, WindowProperties, NodePath
+from panda3d.core import Vec2, Vec3, CardMaker, TextureStage, DirectionalLight, AmbientLight, WindowProperties, NodePath, TextNode
 
 id_counter = itertools.count()
 
@@ -35,12 +35,13 @@ class Skyscraper:
     timer_triggered: bool = False
 
 class GameScene:
-    def __init__(self, world, render, loader, camera, win, game_settings: GameSettings, run: Run):
+    def __init__(self, world, render, loader, camera, win, aspect2d, game_settings: GameSettings, run: Run):
         self.render = render
         self.loader = loader
         self.world = world
         self.camera = camera
         self.win = win
+        self.aspect2d = aspect2d
         self.game_settings = game_settings
         self.run = run
 
@@ -54,6 +55,7 @@ class GameScene:
         # debug_np.show()   
         self.world.setDebugNode(debug_np.node())
         self.setup_window()
+        self.setup_ui()
         self.setup_light()
         self.setup_ground()
         self.setup_player()
@@ -62,6 +64,12 @@ class GameScene:
 
         # self.render.ls()
     
+    def setup_ui(self):
+        self.score_node = TextNode("score_node")
+        self.score_node_path = self.aspect2d.attachNewNode(self.score_node)
+        self.score_node_path.set_scale(0.1)
+        self.score_node_path.set_pos((-1, 0, 0.75))
+
     def setup_collisions(self):
         self.current_collisions = set()
 
@@ -231,6 +239,7 @@ class GameScene:
 
     def update_score(self):
         self.run.score += 0.1        
+        self.score_node.set_text(f"SCORE: {round(self.run.score)}")
 
     def update(self, task):
         dt = globalClock.getDt()
@@ -249,7 +258,7 @@ class App(ShowBase):
         super().__init__()
         self.accept("escape", self.exit_app)
         self.disableMouse()
-        game_scene = GameScene(BulletWorld(), self.render, self.loader, self.camera, self.win, GameSettings(), Run())
+        game_scene = GameScene(BulletWorld(), self.render, self.loader, self.camera, self.win, self.aspect2d, GameSettings(), Run())
         self.taskMgr.add(game_scene.update, 'update')
     
     def exit_app(self):
