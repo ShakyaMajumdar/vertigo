@@ -6,10 +6,39 @@ import sys
 from direct.showbase.ShowBase import ShowBase
 from direct.showbase.ShowBaseGlobal import globalClock
 from direct.showbase.InputStateGlobal import inputState
+from direct.fsm.FSM import FSM
+from direct.gui import DirectGuiGlobals
+from direct.gui.DirectButton import DirectButton
 from panda3d.bullet import BulletPlaneShape, BulletRigidBodyNode, BulletWorld, BulletCapsuleShape, BulletBoxShape, BulletCharacterControllerNode, BulletDebugNode, ZUp
 from panda3d.core import Vec2, Vec3, CardMaker, TextureStage, DirectionalLight, AmbientLight, WindowProperties, NodePath, TextNode
 
 id_counter = itertools.count()
+
+class AppFSM(FSM):
+    def __init__(self, app):
+        super().__init__("AppFSM")
+        self.app = app
+
+    def enterMainMenu(self):
+        print("menu enter")
+        self.menu = MenuScene(fsm=self)
+
+    def exitMainMenu(self):
+        self.menu.exit()
+    
+    def enterGame(self):
+        self.game_np = NodePath("game")
+        self.game_np.reparentTo(app.render)
+        self.game_scene = GameScene(BulletWorld(), self.game_np, app.loader, app.camera, app.win, app.aspect2d, self, GameSettings(), Run())
+        app.taskMgr.add(self.game_scene.update, 'update')
+
+    def exitGame(self):
+        props = WindowProperties()
+        props.setCursorHidden(False)
+        app.win.requestProperties(props)
+        app.taskMgr.remove("update")
+        self.game_np.removeNode()
+        NodePath(self.game_scene.score_node).removeNode()
 
 @dataclass
 class GameSettings:
@@ -55,14 +84,46 @@ class Platform:
     ttl: int
     model: NodePath
 
+
+def make_button(text, callback, pos):
+    return DirectButton(
+        text=text,
+        command=callback,
+        pos=pos,
+        scale=(0.12, 1, 0.12),
+        text_scale=(0.9, 0.9),
+
+        text_bg=(249/255, 161/255, 72/255, 1),
+        text_fg=(0, 0, 0, 1),
+        relief=DirectGuiGlobals.GROOVE,
+        frameColor=(184/255, 64/255, 22/255, 1),
+        text_shadow=(0, 0.0425, 0.0625, 1),
+    )
+
+
+class MenuScene:
+    def __init__(self, fsm):
+        self.buttons = [
+            make_button("NEW GAME", lambda: fsm.request("Game"), (0, 0, -0.2)),
+            make_button("HOW TO PLAY", lambda: fsm.request("HowToPlay"), (0, 0, -0.39)),
+            make_button("CREDITS", lambda: fsm.request("Credits"), (0, 0, -0.57)),
+            make_button("QUIT", sys.exit, (0, 0, -0.75)),
+        ]
+
+    def exit(self):
+        for button in self.buttons:
+            button.destroy()
+
+
 class GameScene:
-    def __init__(self, world, render, loader, camera, win, aspect2d, game_settings: GameSettings, run: Run):
+    def __init__(self, world, render, loader, camera, win, aspect2d, fsm: AppFSM, game_settings: GameSettings, run: Run):
         self.render = render
         self.loader = loader
         self.world = world
         self.camera = camera
         self.win = win
         self.aspect2d = aspect2d
+        self.fsm = fsm
         self.game_settings = game_settings
         self.run = run
 
@@ -84,7 +145,6 @@ class GameScene:
         self.setup_skyscrapers()
 
         self.platforms = []
-        # self.render.ls()
     
     def setup_ui(self):
         self.score_node = TextNode("score_node")
@@ -168,7 +228,6 @@ class GameScene:
             self.setup_skyscraper(ss)
     
     def setup_skyscraper(self, ss: Skyscraper):
-        print("ss", ss.id, ss.powerup)
         ss_shape = BulletBoxShape(ss.scale*0.5)
         ss_node = ss.node_path.node()
         ss_node.setMass(0)  
@@ -323,7 +382,6 @@ class GameScene:
         return False
 
     def on_player_hit_skyscraper(self, node):
-        print("Player collided with skyscraper:", node.getName())
         ss = self.skyscrapers[int(node.getName().split("#")[1])]
         if not ss.timer_triggered:
             ss.timer_triggered = True
@@ -352,7 +410,6 @@ class GameScene:
         pu_np.removeNode()
 
     def on_player_hit_ground(self, node):
-        print("Player collided with ground:", node.getName())
         self.run.hp = 0
 
     def update_ttl(self, dt):
@@ -380,13 +437,9 @@ class GameScene:
 
     def update_forward_force(self):
         self.run.forward_force += self.game_settings.forward_force_rate
-
-    def f(self):
-        p = self.player_np.getPos()
-        return f"{round(p.x)} {round(p.y)} {round(p.z)}"
     
     def update_score(self):  
-        self.score_node.set_text(f"SCORE: {round(self.run.score)}\nCOORDS: {self.f()}\nPLATFORMS: {self.run.platform_maker_remaining}\nFEATHER FALLS: {self.run.feather_fall_remaining}\nHP: {self.run.hp}")
+        self.score_node.set_text(f"SCORE: {round(self.run.score)}\nPLATFORMS: {self.run.platform_maker_remaining}\nFEATHER FALLS: {self.run.feather_fall_remaining}\nHP: {self.run.hp}")
 
     def update_last_ground_height(self):
         if self.player_n.isOnGround():
@@ -403,16 +456,18 @@ class GameScene:
         self.world.doPhysics(dt)
         self.process_collisions()
         self.update_last_ground_height()
+        if self.run.hp <= 0:
+            self.fsm.request("MainMenu")
         return task.cont
 
 
 class App(ShowBase):
     def __init__(self):
         super().__init__()
-        self.accept("escape", self.exit_app)
+        fsm = AppFSM(self)
         self.disableMouse()
-        game_scene = GameScene(BulletWorld(), self.render, self.loader, self.camera, self.win, self.aspect2d, GameSettings(), Run())
-        self.taskMgr.add(game_scene.update, 'update')
+        self.accept("escape", lambda: fsm.request("MainMenu") if fsm.state != "MainMenu" else sys.exit(0))
+        fsm.request("MainMenu")
     
     def exit_app(self):
         sys.exit(0)
