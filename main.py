@@ -135,7 +135,7 @@ class GameScene:
             id=home_ss_id,
             node_path=self.render.attachNewNode(BulletRigidBodyNode(f'Skyscraper#{home_ss_id}')),
             pos=Vec3(0, 0, 0),
-            scale=Vec3(10, 10, 20),
+            scale=Vec3(10, 10, 30),
             ttl=50000,
             model=self.loader.loadModel('models/box.egg')
         )
@@ -144,15 +144,15 @@ class GameScene:
             self.setup_skyscraper(ss)
     
     def setup_skyscraper(self, ss: Skyscraper):
-        ss_shape = BulletBoxShape(ss.scale)
+        ss_shape = BulletBoxShape(ss.scale*0.5)
         ss_node = ss.node_path.node()
         ss_node.setMass(0)  
         ss_node.addShape(ss_shape)
-        ss.node_path.setPos(ss.pos.x, ss.pos.y, ss.scale.z)
+        ss.node_path.setPos(ss.pos.x, ss.pos.y, ss.scale.z/2)
         self.world.attachRigidBody(ss_node)
-        ss.model.setScale(ss.scale*2.0)
+        ss.model.setScale(ss.scale)
         ss.model.reparentTo(ss.node_path)
-        ss.model.setPos(ss.pos.x-ss.scale.x, ss.pos.y-ss.scale.y, -ss.scale.z)
+        ss.model.setPos(-ss.scale.x/2, -ss.scale.y/2, -ss.scale.z/2)
 
     def process_mouse(self):
         md = self.win.getPointer(0)
@@ -220,13 +220,13 @@ class GameScene:
             sy = random.randint(5, 12)
             sz = random.randint(2, 2) * 10
             if random.random() > 0.5:
-                px = ss.pos.x + ss.scale.x/2 + dx
+                px = ss.pos.x + ss.scale.x/2 + sx/2 + dx
             else:
-                px = ss.pos.x - ss.scale.x/2 - dx
+                px = ss.pos.x - ss.scale.x/2 - sx/2 - dx
             if random.random() > 0.5:
-                py = ss.pos.y + ss.scale.y/2 + dy
+                py = ss.pos.y + ss.scale.y/2 + sy/2 + dy
             else:
-                py = ss.pos.y - ss.scale.y/2 - dy
+                py = ss.pos.y - ss.scale.y/2 - sy/2 - dy
             print(px, py, sx, sy, sz)
             if not self.intersects_ss(Vec2(px, py), Vec2(sx, sy)):
                 ss_id = next(id_counter)
