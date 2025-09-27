@@ -45,6 +45,26 @@ class AppFSM(FSM):
         self.game_np.removeNode()
         NodePath(self.game_scene.score_node).removeNode()
 
+    def enterHowToPlay(self):
+        self.htp_scene = TextBoxScene(self, text="""Leap between the skyscrapers and survive as long as you can! 
+Collect powerups to gain an edge:
+
+Blue - Land safely from any fall.
+
+Red - Restore some health.
+
+Green - Spawn platforms beneath you while jumping.""", pos=(0, 0, 0.3))
+    
+    def exitHowToPlay(self):
+        self.htp_scene.exit()
+    
+    def enterCredits(self):
+        self.creds_scene = TextBoxScene(self, text="Made by vinam & hsp", pos=(0,0,0))
+
+    def exitCredits(self):
+        self.creds_scene.exit()
+
+
 @dataclass
 class GameSettings:
     speed: float = 20
@@ -144,6 +164,13 @@ class MenuScene:
     def exit(self):
         for ob in self.buttons + self.tbs:
             ob.destroy()
+
+
+class TextBoxScene:
+    def __init__(self, fsm, text, pos):
+        self.tb = make_textbox(text, pos)
+    def exit(self):
+        self.tb.destroy()
 
 
 class GameScene:
@@ -400,7 +427,7 @@ class GameScene:
         self.current_collisions = new_collisions
     
     def spawn_neighbours(self, ss: Skyscraper):
-        n_attempts = random.randint(3, 7)
+        n_attempts = 7
         for _ in range(n_attempts):
             dx = random.randint(5, 10) 
             dy = random.randint(5, 10)
