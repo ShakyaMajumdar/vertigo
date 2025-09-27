@@ -19,7 +19,7 @@ class GameSettings:
     jump_height: float = 0.7
     jump_speed: float = 10
     mouse_sensitivity = 0.1
-    forward_force_rate = 0.0001
+    forward_force_rate = 0 # 0.0001
     ttl_decay_rate = 1
 
 @dataclass
@@ -83,6 +83,7 @@ class GameScene:
         self.setup_controls()
         self.setup_skyscrapers()
 
+        self.platforms = []
         # self.render.ls()
     
     def setup_ui(self):
@@ -240,12 +241,9 @@ class GameScene:
 
         if jump_down and not self.was_jump_down:
             if self.player_n.isOnGround():
-                # print('normal jump')
                 self.player_n.doJump()
             elif self.run.platform_maker_remaining > 0:
                 self.run.platform_maker_remaining -= 1
-                # print('double jump', self.player_n.canJump())
-                # Platform()
                 djp_scale = Vec3(10, 10, 0.5)
                 djp_shape = BulletBoxShape(djp_scale * 0.5)
                 djp_node = BulletRigidBodyNode(f'DJPlat')
@@ -258,7 +256,15 @@ class GameScene:
                 model.setScale(djp_scale)
                 model.reparentTo(djp_np)
                 model.setPos(-djp_scale*0.5)
-                # print('double jump', self.player_n.canJump())
+                self.platforms.append(
+                    Platform(
+                        node_path=djp_np, 
+                        pos=djp_np.getPos(), 
+                        scale=djp_scale, 
+                        ttl=3,
+                        model=model
+                    )
+                )
 
         self.was_jump_down = jump_down
 
@@ -362,6 +368,15 @@ class GameScene:
                 ss.node_path.removeNode()
         self.skyscrapers = new_ss
 
+        new_plats = []
+        for plat in self.platforms:
+            plat.ttl -= decay
+            if plat.ttl > 0:
+                new_plats.append(plat)
+            else:
+                self.world.remove(plat.node_path.node())
+                plat.node_path.removeNode()
+        self.platforms = new_plats
 
     def update_forward_force(self):
         self.run.forward_force += self.game_settings.forward_force_rate
