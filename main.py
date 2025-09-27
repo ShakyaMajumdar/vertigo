@@ -119,9 +119,21 @@ def make_button(text, callback, pos):
 
 class MenuScene:
     def __init__(self, fsm, last_run_score = None):
-        self.tb = None
+        self.tbs = [
+            DirectLabel(
+                text="VERTIGO",
+                pos=(0, 0, 0.5),
+                scale=0.15,  # bigger than normal text
+                text_scale=(1.8, 1.8),
+                
+                text_fg=(1, 1, 0.5, 1),      # golden-yellow
+                text_shadow=(0, 0, 0, 1),    # black shadow for contrast
+                frameColor=(0, 0, 0, 0),     # transparent background
+                relief=DirectGuiGlobals.FLAT,
+            )
+        ]
         if last_run_score is not None:
-            self.tb = make_textbox(f"SCORE: {last_run_score}", (0, 0, 0.2))
+            self.tbs.append(make_textbox(f"SCORE: {last_run_score}", (0, 0, 0.2)))
         self.buttons = [
             make_button("NEW GAME", lambda: fsm.request("Game"), (0, 0, -0.2)),
             make_button("HOW TO PLAY", lambda: fsm.request("HowToPlay"), (0, 0, -0.39)),
@@ -130,10 +142,8 @@ class MenuScene:
         ]
 
     def exit(self):
-        for button in self.buttons:
-            button.destroy()
-        if self.tb:
-            self.tb.destroy()
+        for ob in self.buttons + self.tbs:
+            ob.destroy()
 
 
 class GameScene:
@@ -357,6 +367,7 @@ class GameScene:
                 djp_np.setPos(self.player_np.getPos() + Vec3(0, 0, -1))
                 self.world.attachRigidBody(djp_node)
                 model = self.loader.loadModel('models/box.egg')
+                model.setColor(1, 0, 1, 1)
                 model.setScale(djp_scale)
                 model.reparentTo(djp_np)
                 model.setPos(-djp_scale*0.5)
@@ -446,7 +457,7 @@ class GameScene:
         pu_t = PowerupTypes(pu_np.getTag("powerup"))
         match pu_t:
             case PowerupTypes.PLAT_MAKE:
-                self.run.platform_maker_remaining += 2
+                self.run.platform_maker_remaining += 5
             case PowerupTypes.FEATHER_FALL:
                 self.run.feather_fall_remaining += 1
             case PowerupTypes.HEAL:
