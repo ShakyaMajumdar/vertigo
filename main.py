@@ -75,7 +75,7 @@ class GameSettings:
     jump_height: float = 0.7
     jump_speed: float = 10
     mouse_sensitivity = 0.1
-    forward_force_rate = 0.00005
+    forward_force_rate = 0.0
     ttl_decay_rate = 1
 
 @dataclass
@@ -194,7 +194,7 @@ class GameScene:
         debug_node.showBoundingBoxes(True)
         debug_node.showNormals(True)
         debug_np = self.render.attachNewNode(debug_node)
-        # debug_np.show()   
+        debug_np.show()   
         self.world.setDebugNode(debug_np.node())
         self.setup_window()
         self.setup_ui()
@@ -298,9 +298,10 @@ class GameScene:
             pos=Vec3(0, 0, 0),
             scale=Vec3(20, 30, 30),
             ttl=5,
-            model=self.loader.loadModel('models/box.egg'),
+            model=self.loader.loadModel('b2.egg'),
             powerup=None
         )
+        home_ss.model.setHpr(0, 90, 0)
         self.skyscrapers = {home_ss_id: home_ss}
         for ss in self.skyscrapers.values():
             self.setup_skyscraper(ss)
@@ -453,9 +454,10 @@ class GameScene:
                     pos=Vec3(px, py, 0),
                     scale=Vec3(sx, sy, sz),
                     ttl=5,
-                    model=self.loader.loadModel('models/box.egg'),
+                    model=self.loader.loadModel('b2.egg'),
                     powerup=random.choice([None, *PowerupTypes])
                 )
+                ss.model.setHpr(0, 90, 0)
                 self.skyscrapers[ss_id] = ss
                 self.setup_skyscraper(ss)
 
