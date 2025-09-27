@@ -19,12 +19,13 @@ class GameSettings:
     jump_speed: float = 10
     mouse_sensitivity = 0.1
     forward_force_rate = 0.0001
+    ttl_decay_rate = 1
 
 @dataclass
 class Run:
     forward_force: float = 0
     score: float = 0.0
-    platform_maker_ttl: float = 50000.0
+    platform_maker_ttl: float = 0.0
     feather_fall_ttl: float = 0.0
 
 @dataclass
@@ -140,7 +141,7 @@ class GameScene:
             node_path=self.render.attachNewNode(BulletRigidBodyNode(f'Skyscraper#{home_ss_id}')),
             pos=Vec3(0, 0, 0),
             scale=Vec3(20, 20, 30),
-            ttl=5000,
+            ttl=5,
             model=self.loader.loadModel('models/box.egg')
         )
         self.skyscrapers = {home_ss_id: home_ss}
@@ -217,7 +218,7 @@ class GameScene:
                 model.setScale(djp_scale)
                 model.reparentTo(djp_np)
                 model.setPos(-djp_scale*0.5)
-                print('double jump', self.player_n.canJump())
+                # print('double jump', self.player_n.canJump())
 
         self.was_jump_down = jump_down
 
@@ -259,7 +260,7 @@ class GameScene:
                     node_path=self.render.attachNewNode(BulletRigidBodyNode(f'Skyscraper#{ss_id}')),
                     pos=Vec3(px, py, 0),
                     scale=Vec3(sx, sy, sz),
-                    ttl=5000,
+                    ttl=5,
                     model=self.loader.loadModel('models/box.egg')
                 )
                 self.skyscrapers[ss_id] = ss
@@ -285,14 +286,17 @@ class GameScene:
     def update_skyscrapers(self):
         new_ss = {}
         for id, ss in self.skyscrapers.items():
-            if ss.timer_triggered:
-                ss.ttl -= 1
             if ss.ttl > 0:
                 new_ss[id] = ss
             else:
                 self.world.remove(ss.node_path.node())
                 ss.node_path.removeNode()
         self.skyscrapers = new_ss
+
+    def update_ttl(self, dt):
+        for ss in self.skyscrapers.values():
+            if ss.timer_triggered:
+                ss.ttl -= self.game_settings.ttl_decay_rate * dt
 
     def update_forward_force(self):
         self.run.forward_force += self.game_settings.forward_force_rate
@@ -307,6 +311,7 @@ class GameScene:
         dt = globalClock.getDt()
         self.process_mouse()
         self.process_movement(dt)
+        self.update_ttl(dt)
         self.update_skyscrapers()
         self.update_forward_force()
         self.update_score()
