@@ -8,6 +8,7 @@ from direct.showbase.ShowBaseGlobal import globalClock
 from direct.showbase.InputStateGlobal import inputState
 from direct.fsm.FSM import FSM
 from direct.gui import DirectGuiGlobals
+from direct.gui.DirectLabel import DirectLabel
 from direct.gui.DirectButton import DirectButton
 from panda3d.bullet import BulletPlaneShape, BulletRigidBodyNode, BulletWorld, BulletCapsuleShape, BulletBoxShape, BulletCharacterControllerNode, BulletDebugNode, ZUp
 from panda3d.core import Vec2, Vec3, CardMaker, TextureStage, DirectionalLight, AmbientLight, WindowProperties, NodePath, TextNode, Fog
@@ -19,8 +20,8 @@ class AppFSM(FSM):
         super().__init__("AppFSM")
         self.app = app
 
-    def enterMainMenu(self):
-        self.menu = MenuScene(fsm=self)
+    def enterMainMenu(self, last_run_score=None):
+        self.menu = MenuScene(fsm=self, last_run_score=last_run_score)
 
     def exitMainMenu(self):
         self.menu.exit()
@@ -83,6 +84,17 @@ class Platform:
     ttl: int
     model: NodePath
 
+def make_textbox(text, pos):
+    return DirectLabel(
+        text=text,
+        pos=pos,
+        scale=(0.12, 1, 0.12),
+        text_scale=(0.9, 0.9),
+        text_bg=(173/255, 216/255, 230/255, 1),
+        text_fg=(0, 0, 0, 1),
+        frameColor=(184/255, 64/255, 22/255, 1),
+        text_shadow=(0, 0.0425, 0.0625, 1),
+    )
 
 def make_button(text, callback, pos):
     return DirectButton(
@@ -92,7 +104,7 @@ def make_button(text, callback, pos):
         scale=(0.12, 1, 0.12),
         text_scale=(0.9, 0.9),
 
-        text_bg=(249/255, 161/255, 72/255, 1),
+        text_bg=(173/255, 216/255, 230/255, 1),
         text_fg=(0, 0, 0, 1),
         relief=DirectGuiGlobals.GROOVE,
         frameColor=(184/255, 64/255, 22/255, 1),
@@ -101,7 +113,10 @@ def make_button(text, callback, pos):
 
 
 class MenuScene:
-    def __init__(self, fsm):
+    def __init__(self, fsm, last_run_score = None):
+        self.tb = None
+        if last_run_score is not None:
+            self.tb = make_textbox(f"SCORE: {last_run_score}", (0, 0, 0.2))
         self.buttons = [
             make_button("NEW GAME", lambda: fsm.request("Game"), (0, 0, -0.2)),
             make_button("HOW TO PLAY", lambda: fsm.request("HowToPlay"), (0, 0, -0.39)),
@@ -112,6 +127,8 @@ class MenuScene:
     def exit(self):
         for button in self.buttons:
             button.destroy()
+        if self.tb:
+            self.tb.destroy()
 
 
 class GameScene:
@@ -174,7 +191,7 @@ class GameScene:
 
         fog = Fog("distance-fog")
         fog.setColor(0.5, 0.6, 0.7)   
-        fog.setExpDensity(0.008)       
+        fog.setExpDensity(0.004)       
 
         self.render.setFog(fog)
 
@@ -462,7 +479,7 @@ class GameScene:
         self.process_collisions()
         self.update_last_ground_height()
         if self.run.hp <= 0:
-            self.fsm.request("MainMenu")
+            self.fsm.request("MainMenu", int(self.run.score))
         return task.cont
 
 
@@ -470,6 +487,7 @@ class App(ShowBase):
     def __init__(self):
         super().__init__()
         fsm = AppFSM(self)
+        self.setBackgroundColor(0.5, 0.6, 0.7)
         self.disableMouse()
         self.accept("escape", lambda: fsm.request("MainMenu") if fsm.state != "MainMenu" else sys.exit(0))
         fsm.request("MainMenu")
