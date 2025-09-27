@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from enum import Enum
 import itertools
 import random
 import sys
@@ -25,8 +26,13 @@ class GameSettings:
 class Run:
     forward_force: float = 0
     score: float = 0.0
-    platform_maker_ttl: float = 0.0
-    feather_fall_ttl: float = 0.0
+    platform_maker_remaining: int = 10
+    feather_fall_remaining: int = 2
+
+class PowerupTypes(Enum):
+    PLAT_MAKE = "PLAT_MAKE"
+    FEATHER_FALL = "FEATHER_FALL"
+    HEAL = "HEAL"
 
 @dataclass
 class Skyscraper:
@@ -37,6 +43,15 @@ class Skyscraper:
     ttl: int
     model: NodePath
     timer_triggered: bool = False
+    powerup: PowerupTypes | None = None
+
+@dataclass
+class Platform:
+    node_path: NodePath
+    pos: Vec2
+    scale: Vec3
+    ttl: int
+    model: NodePath
 
 class GameScene:
     def __init__(self, world, render, loader, camera, win, aspect2d, game_settings: GameSettings, run: Run):
@@ -142,13 +157,15 @@ class GameScene:
             pos=Vec3(0, 0, 0),
             scale=Vec3(20, 20, 30),
             ttl=5,
-            model=self.loader.loadModel('models/box.egg')
+            model=self.loader.loadModel('models/box.egg'),
+            powerup=None
         )
         self.skyscrapers = {home_ss_id: home_ss}
         for ss in self.skyscrapers.values():
             self.setup_skyscraper(ss)
     
     def setup_skyscraper(self, ss: Skyscraper):
+        print("ss", ss.id, ss.powerup)
         ss_shape = BulletBoxShape(ss.scale*0.5)
         ss_node = ss.node_path.node()
         ss_node.setMass(0)  
@@ -158,6 +175,25 @@ class GameScene:
         ss.model.setScale(ss.scale)
         ss.model.reparentTo(ss.node_path)
         ss.model.setPos(-ss.scale.x/2, -ss.scale.y/2, -ss.scale.z/2)
+
+        if ss.powerup is None:
+            return
+        
+        pu_scale = Vec3(1, 1, 1)
+        pu_shape = BulletBoxShape(pu_scale * 0.5)
+        pu_node = BulletRigidBodyNode(f'Powerup')
+        pu_node.setTag("powerup", ss.powerup.value)
+        pu_node.setMass(0)  
+        pu_node.addShape(pu_shape)
+        pu_np = ss.node_path.attachNewNode(pu_node)
+        pu_np.setPos(Vec3(0, 0, ss.scale.z/2 + 1))
+
+        self.world.attachRigidBody(pu_node)
+        model = self.loader.loadModel('models/box.egg')
+        model.setScale(pu_scale)
+        model.reparentTo(pu_np)
+        model.setPos(-pu_scale*0.5)
+
 
     def process_mouse(self):
         md = self.win.getPointer(0)
@@ -204,8 +240,10 @@ class GameScene:
             if self.player_n.isOnGround():
                 # print('normal jump')
                 self.player_n.doJump()
-            elif self.run.platform_maker_ttl > 0:
+            elif self.run.platform_maker_remaining > 0:
+                self.run.platform_maker_remaining -= 1
                 # print('double jump', self.player_n.canJump())
+                # Platform()
                 djp_scale = Vec3(10, 10, 0.5)
                 djp_shape = BulletBoxShape(djp_scale * 0.5)
                 djp_node = BulletRigidBodyNode(f'DJPlat')
@@ -234,10 +272,12 @@ class GameScene:
                     self.on_player_hit_skyscraper(other)
                 elif other.getName() == "Ground":
                     self.on_player_hit_ground(other)
+                elif other.getName() == "Powerup":
+                    self.on_player_hit_powerup(other)
         self.current_collisions = new_collisions
     
     def spawn_neighbours(self, ss: Skyscraper):
-        n_attempts = random.randint(1, 3)
+        n_attempts = random.randint(3, 7)
         for _ in range(n_attempts):
             dx = random.randint(5, 10) 
             dy = random.randint(5, 10)
@@ -261,7 +301,8 @@ class GameScene:
                     pos=Vec3(px, py, 0),
                     scale=Vec3(sx, sy, sz),
                     ttl=5,
-                    model=self.loader.loadModel('models/box.egg')
+                    model=self.loader.loadModel('models/box.egg'),
+                    powerup=random.choice([None, *PowerupTypes])
                 )
                 self.skyscrapers[ss_id] = ss
                 self.setup_skyscraper(ss)
@@ -280,12 +321,26 @@ class GameScene:
             ss.timer_triggered = True
             self.spawn_neighbours(ss)
 
+    def on_player_hit_powerup(self, node):
+        pu_np = NodePath(node)
+        pu_t = PowerupTypes(pu_np.getTag("powerup"))
+        match pu_t:
+            case PowerupTypes.PLAT_MAKE:
+                self.run.platform_maker_remaining += 5
+            case PowerupTypes.FEATHER_FALL:
+                self.run.feather_fall_remaining += 1
+        self.world.remove(node)
+        pu_np.removeNode()
+
     def on_player_hit_ground(self, node):
         print("Player collided with ground:", node.getName())
 
-    def update_skyscrapers(self):
+    def update_ttl(self, dt):
+        decay =  self.game_settings.ttl_decay_rate * dt
         new_ss = {}
         for id, ss in self.skyscrapers.items():
+            if ss.timer_triggered:
+                ss.ttl -= decay
             if ss.ttl > 0:
                 new_ss[id] = ss
             else:
@@ -293,10 +348,6 @@ class GameScene:
                 ss.node_path.removeNode()
         self.skyscrapers = new_ss
 
-    def update_ttl(self, dt):
-        for ss in self.skyscrapers.values():
-            if ss.timer_triggered:
-                ss.ttl -= self.game_settings.ttl_decay_rate * dt
 
     def update_forward_force(self):
         self.run.forward_force += self.game_settings.forward_force_rate
@@ -305,14 +356,14 @@ class GameScene:
         return f"{round(p.x)} {round(p.y)} {round(p.z)}"
     def update_score(self):
         self.run.score += 0.1        
-        self.score_node.set_text(f"SCORE: {round(self.run.score)} {self.f()}")
+        self.score_node.set_text(f"SCORE: {round(self.run.score)} COORDS: {self.f()} PLATFORMS: {self.run.platform_maker_remaining}")
 
     def update(self, task):
         dt = globalClock.getDt()
         self.process_mouse()
         self.process_movement(dt)
         self.update_ttl(dt)
-        self.update_skyscrapers()
+        # self.update_skyscrapers()
         self.update_forward_force()
         self.update_score()
         self.world.doPhysics(dt)
