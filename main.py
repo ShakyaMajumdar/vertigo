@@ -291,6 +291,12 @@ class GameScene:
 
         self.world.attachRigidBody(pu_node)
         model = self.loader.loadModel('models/box.egg')
+        pu_colors = {
+            PowerupTypes.FEATHER_FALL: (0, 0, 1, 1),
+            PowerupTypes.PLAT_MAKE: (0, 1, 0, 1),
+            PowerupTypes.HEAL: (1, 0, 0, 1)
+        }
+        model.setColor(*pu_colors[ss.powerup])
         model.setScale(pu_scale)
         model.reparentTo(pu_np)
         model.setPos(-pu_scale*0.5)
