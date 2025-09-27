@@ -10,8 +10,12 @@ from direct.fsm.FSM import FSM
 from direct.gui import DirectGuiGlobals
 from direct.gui.DirectLabel import DirectLabel
 from direct.gui.DirectButton import DirectButton
+from direct.gui.DirectWaitBar import DirectWaitBar
 from panda3d.bullet import BulletPlaneShape, BulletRigidBodyNode, BulletWorld, BulletCapsuleShape, BulletBoxShape, BulletCharacterControllerNode, BulletDebugNode, ZUp
-from panda3d.core import Vec2, Vec3, CardMaker, TextureStage, DirectionalLight, AmbientLight, WindowProperties, NodePath, TextNode, Fog
+from panda3d.core import Vec2, Vec3, CardMaker, TextureStage, DirectionalLight, AmbientLight, WindowProperties, NodePath, TextNode, Fog, loadPrcFileData
+
+loadPrcFileData("", "win-size 1280 720")   
+loadPrcFileData("", "window-title VERTIGO")
 
 id_counter = itertools.count()
 
@@ -35,6 +39,7 @@ class AppFSM(FSM):
     def exitGame(self):
         props = WindowProperties()
         props.setCursorHidden(False)
+        self.game_scene.hp_bar.destroy()
         app.win.requestProperties(props)
         app.taskMgr.remove("update")
         self.game_np.removeNode()
@@ -56,7 +61,7 @@ class Run:
     forward_force: float = 0
     score: float = 0.0
     platform_maker_remaining: int = 10
-    feather_fall_remaining: int = 2
+    feather_fall_remaining: int = 1
     hp: int = 100
     last_ground_height: float = 0.0
 
@@ -166,13 +171,25 @@ class GameScene:
         self.score_node = TextNode("score_node")
         self.score_node_path = self.aspect2d.attachNewNode(self.score_node)
         self.score_node_path.set_scale(0.1)
-        self.score_node_path.set_pos((-1, 0, 0.75))
+        self.score_node_path.set_pos((-1.5, 0, 0.75))
+
+        self.hp_bar = DirectWaitBar(
+            text="",  # don’t show numbers, just the bar
+            value=100,
+            range=100,
+            pos=(0, 0, 0.9),    # top-left corner
+            scale=0.4,
+            barColor=(0.1, 0.8, 0.1, 1),       # red bar
+            frameColor=(0, 0, 0, 1),           # black border
+            relief=1,                          # sunken frame
+        )
 
     def setup_collisions(self):
         self.current_collisions = set()
 
     def setup_window(self):
         props = WindowProperties()
+        props.setSize(1280, 720)
         # props.setFullscreen(True)
         props.setCursorHidden(True)
         props.setMouseMode(WindowProperties.M_relative)
@@ -213,7 +230,7 @@ class GameScene:
     def setup_player(self):
         self.player_n = BulletCharacterControllerNode(BulletCapsuleShape(1.5, 1.0, ZUp), 1.5, "Player")
         self.player_np = self.render.attachNewNode(self.player_n)
-        self.player_np.setPos(0, 0, 35)
+        self.player_np.setPos(0, 0, 33)
         self.player_n.setGravity(self.game_settings.gravity)
         self.player_n.setMaxJumpHeight(self.game_settings.jump_height)
         self.player_n.setJumpSpeed(self.game_settings.jump_speed)
@@ -240,7 +257,7 @@ class GameScene:
             id=home_ss_id,
             node_path=self.render.attachNewNode(BulletRigidBodyNode(f'Skyscraper#{home_ss_id}')),
             pos=Vec3(0, 0, 0),
-            scale=Vec3(20, 20, 30),
+            scale=Vec3(20, 30, 30),
             ttl=5,
             model=self.loader.loadModel('models/box.egg'),
             powerup=None
@@ -461,7 +478,7 @@ class GameScene:
         self.run.forward_force += self.game_settings.forward_force_rate
     
     def update_score(self):  
-        self.score_node.set_text(f"SCORE: {round(self.run.score)}\nPLATFORMS: {self.run.platform_maker_remaining}\nFEATHER FALLS: {self.run.feather_fall_remaining}\nHP: {self.run.hp}")
+        self.score_node.set_text(f"SCORE: {round(self.run.score)}\nPLATFORMS: {self.run.platform_maker_remaining}\nFEATHER FALLS: {self.run.feather_fall_remaining}")
 
     def update_last_ground_height(self):
         if self.player_n.isOnGround():
@@ -478,6 +495,7 @@ class GameScene:
         self.world.doPhysics(dt)
         self.process_collisions()
         self.update_last_ground_height()
+        self.hp_bar["value"] = int(self.run.hp)
         if self.run.hp <= 0:
             self.fsm.request("MainMenu", int(self.run.score))
         return task.cont
