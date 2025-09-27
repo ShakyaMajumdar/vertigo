@@ -24,6 +24,8 @@ class GameSettings:
 class Run:
     forward_force: float = 0
     score: float = 0.0
+    platform_maker_ttl: float = 50000.0
+    feather_fall_ttl: float = 0.0
 
 @dataclass
 class Skyscraper:
@@ -129,6 +131,8 @@ class GameScene:
         inputState.watchWithModifiers("jump", "space")
         inputState.watchWithModifiers("sprint", "shift")
 
+        self.was_jump_down = False
+
     def setup_skyscrapers(self):
         home_ss_id = next(id_counter)
         home_ss = Skyscraper(
@@ -193,9 +197,29 @@ class GameScene:
             vel = dir_world * self.game_settings.speed
         self.player_n.setLinearMovement(vel, False)
 
-        if inputState.isSet("jump"):
+        jump_down = inputState.isSet("jump")
+
+        if jump_down and not self.was_jump_down:
             if self.player_n.isOnGround():
+                # print('normal jump')
                 self.player_n.doJump()
+            elif self.run.platform_maker_ttl > 0:
+                # print('double jump', self.player_n.canJump())
+                djp_scale = Vec3(10, 10, 0.5)
+                djp_shape = BulletBoxShape(djp_scale * 0.5)
+                djp_node = BulletRigidBodyNode(f'DJPlat')
+                djp_node.setMass(0)  
+                djp_node.addShape(djp_shape)
+                djp_np = self.render.attachNewNode(djp_node)
+                djp_np.setPos(self.player_np.getPos() + Vec3(0, 0, -1))
+                self.world.attachRigidBody(djp_node)
+                model = self.loader.loadModel('models/box.egg')
+                model.setScale(djp_scale)
+                model.reparentTo(djp_np)
+                model.setPos(-djp_scale*0.5)
+                print('double jump', self.player_n.canJump())
+
+        self.was_jump_down = jump_down
 
     def process_collisions(self):
         new_collisions = set()
