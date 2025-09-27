@@ -203,6 +203,7 @@ class GameScene:
         self.setup_player()
         self.setup_controls()
         self.setup_skyscrapers()
+        self.setup_collisions()
 
         self.platforms = []
     
@@ -313,9 +314,9 @@ class GameScene:
         ss_node.addShape(ss_shape)
         ss.node_path.setPos(ss.pos.x, ss.pos.y, ss.scale.z/2)
         self.world.attachRigidBody(ss_node)
-        ss.model.setScale(ss.scale)
+        ss.model.setScale(ss.scale.x/1.36, ss.scale.z/4.48, ss.scale.y/1.36)
         ss.model.reparentTo(ss.node_path)
-        ss.model.setPos(-ss.scale.x/2, -ss.scale.y/2, -ss.scale.z/2)
+        ss.model.setPos(0, 0, -ss.scale.z/2)
 
         if ss.powerup is None:
             return
