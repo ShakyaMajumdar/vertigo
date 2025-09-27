@@ -322,6 +322,7 @@ class GameScene:
         if not ss.timer_triggered:
             ss.timer_triggered = True
             self.spawn_neighbours(ss)
+        self.run.score += 10      
         fall = self.run.last_ground_height - ss.scale.z
         fall_damage = max(0, fall//10) * 20
         if fall_damage > 0:
@@ -364,11 +365,12 @@ class GameScene:
 
     def update_forward_force(self):
         self.run.forward_force += self.game_settings.forward_force_rate
+
     def f(self):
         p = self.player_np.getPos()
         return f"{round(p.x)} {round(p.y)} {round(p.z)}"
-    def update_score(self):
-        self.run.score += 0.1        
+    
+    def update_score(self):  
         self.score_node.set_text(f"SCORE: {round(self.run.score)}\nCOORDS: {self.f()}\nPLATFORMS: {self.run.platform_maker_remaining}\nFEATHER FALLS: {self.run.feather_fall_remaining}\nHP: {self.run.hp}")
 
     def update_last_ground_height(self):
