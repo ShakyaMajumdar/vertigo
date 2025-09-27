@@ -10,7 +10,7 @@ from direct.fsm.FSM import FSM
 from direct.gui import DirectGuiGlobals
 from direct.gui.DirectButton import DirectButton
 from panda3d.bullet import BulletPlaneShape, BulletRigidBodyNode, BulletWorld, BulletCapsuleShape, BulletBoxShape, BulletCharacterControllerNode, BulletDebugNode, ZUp
-from panda3d.core import Vec2, Vec3, CardMaker, TextureStage, DirectionalLight, AmbientLight, WindowProperties, NodePath, TextNode
+from panda3d.core import Vec2, Vec3, CardMaker, TextureStage, DirectionalLight, AmbientLight, WindowProperties, NodePath, TextNode, Fog
 
 id_counter = itertools.count()
 
@@ -20,7 +20,6 @@ class AppFSM(FSM):
         self.app = app
 
     def enterMainMenu(self):
-        print("menu enter")
         self.menu = MenuScene(fsm=self)
 
     def exitMainMenu(self):
@@ -48,7 +47,7 @@ class GameSettings:
     jump_height: float = 0.7
     jump_speed: float = 10
     mouse_sensitivity = 0.1
-    forward_force_rate = 0 # 0.0001
+    forward_force_rate = 0.00005
     ttl_decay_rate = 1
 
 @dataclass
@@ -172,6 +171,12 @@ class GameScene:
         alight.setColor((0.3, 0.3, 0.3, 1))
         alnp = self.render.attachNewNode(alight)
         self.render.setLight(alnp)
+
+        fog = Fog("distance-fog")
+        fog.setColor(0.5, 0.6, 0.7)   
+        fog.setExpDensity(0.008)       
+
+        self.render.setFog(fog)
 
     def setup_ground(self):
         self.ground_n = BulletRigidBodyNode('Ground')
@@ -401,7 +406,7 @@ class GameScene:
         pu_t = PowerupTypes(pu_np.getTag("powerup"))
         match pu_t:
             case PowerupTypes.PLAT_MAKE:
-                self.run.platform_maker_remaining += 5
+                self.run.platform_maker_remaining += 2
             case PowerupTypes.FEATHER_FALL:
                 self.run.feather_fall_remaining += 1
             case PowerupTypes.HEAL:
