@@ -47,6 +47,8 @@ class AppFSM(FSM):
 
     def enterHowToPlay(self):
         self.htp_scene = TextBoxScene(self, text="""Leap between the skyscrapers and survive as long as you can! 
+
+Skyscrapers explode a few seconds after you first touch them.
 Collect powerups to gain an edge:
 
 Blue - Land safely from any fall.
