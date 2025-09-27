@@ -329,7 +329,7 @@ class GameScene:
             if self.run.feather_fall_remaining > 0:
                 self.run.feather_fall_remaining -= 1
             else:
-                self.hp -= fall_damage
+                self.run.hp = max(0, self.run.hp - fall_damage)
         
 
     def on_player_hit_powerup(self, node):
@@ -341,7 +341,7 @@ class GameScene:
             case PowerupTypes.FEATHER_FALL:
                 self.run.feather_fall_remaining += 1
             case PowerupTypes.HEAL:
-                self.run.hp += 20
+                self.run.hp = min(100, self.run.hp+20)
         self.world.remove(node)
         pu_np.removeNode()
 
