@@ -28,6 +28,8 @@ class Run:
     score: float = 0.0
     platform_maker_remaining: int = 10
     feather_fall_remaining: int = 2
+    hp: int = 100
+    last_ground_height: float = 0.0
 
 class PowerupTypes(Enum):
     PLAT_MAKE = "PLAT_MAKE"
@@ -320,6 +322,14 @@ class GameScene:
         if not ss.timer_triggered:
             ss.timer_triggered = True
             self.spawn_neighbours(ss)
+        fall = self.run.last_ground_height - ss.scale.z
+        fall_damage = max(0, fall//10) * 20
+        if fall_damage > 0:
+            if self.run.feather_fall_remaining > 0:
+                self.run.feather_fall_remaining -= 1
+            else:
+                self.hp -= fall_damage
+        
 
     def on_player_hit_powerup(self, node):
         pu_np = NodePath(node)
@@ -329,11 +339,14 @@ class GameScene:
                 self.run.platform_maker_remaining += 5
             case PowerupTypes.FEATHER_FALL:
                 self.run.feather_fall_remaining += 1
+            case PowerupTypes.HEAL:
+                self.run.hp += 20
         self.world.remove(node)
         pu_np.removeNode()
 
     def on_player_hit_ground(self, node):
         print("Player collided with ground:", node.getName())
+        self.run.hp = 0
 
     def update_ttl(self, dt):
         decay =  self.game_settings.ttl_decay_rate * dt
@@ -356,7 +369,11 @@ class GameScene:
         return f"{round(p.x)} {round(p.y)} {round(p.z)}"
     def update_score(self):
         self.run.score += 0.1        
-        self.score_node.set_text(f"SCORE: {round(self.run.score)} COORDS: {self.f()} PLATFORMS: {self.run.platform_maker_remaining}")
+        self.score_node.set_text(f"SCORE: {round(self.run.score)}\nCOORDS: {self.f()}\nPLATFORMS: {self.run.platform_maker_remaining}\nFEATHER FALLS: {self.run.feather_fall_remaining}\nHP: {self.run.hp}")
+
+    def update_last_ground_height(self):
+        if self.player_n.isOnGround():
+            self.run.last_ground_height = self.player_np.getPos().z
 
     def update(self, task):
         dt = globalClock.getDt()
@@ -368,6 +385,7 @@ class GameScene:
         self.update_score()
         self.world.doPhysics(dt)
         self.process_collisions()
+        self.update_last_ground_height()
         return task.cont
 
 
