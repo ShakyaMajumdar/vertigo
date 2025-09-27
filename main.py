@@ -18,7 +18,7 @@ class GameSettings:
     jump_height: float = 0.7
     jump_speed: float = 10
     mouse_sensitivity = 0.1
-    forward_force_rate = 0 # 0.0001
+    forward_force_rate = 0.0001
 
 @dataclass
 class Run:
@@ -53,7 +53,7 @@ class GameScene:
         debug_node.showBoundingBoxes(True)
         debug_node.showNormals(True)
         debug_np = self.render.attachNewNode(debug_node)
-        debug_np.show()   
+        # debug_np.show()   
         self.world.setDebugNode(debug_np.node())
         self.setup_window()
         self.setup_ui()
@@ -110,7 +110,7 @@ class GameScene:
     def setup_player(self):
         self.player_n = BulletCharacterControllerNode(BulletCapsuleShape(1.5, 1.0, ZUp), 1.5, "Player")
         self.player_np = self.render.attachNewNode(self.player_n)
-        self.player_np.setPos(0, 0, 50)
+        self.player_np.setPos(0, 0, 35)
         self.player_n.setGravity(self.game_settings.gravity)
         self.player_n.setMaxJumpHeight(self.game_settings.jump_height)
         self.player_n.setJumpSpeed(self.game_settings.jump_speed)
@@ -135,8 +135,8 @@ class GameScene:
             id=home_ss_id,
             node_path=self.render.attachNewNode(BulletRigidBodyNode(f'Skyscraper#{home_ss_id}')),
             pos=Vec3(0, 0, 0),
-            scale=Vec3(10, 10, 30),
-            ttl=50000,
+            scale=Vec3(20, 20, 30),
+            ttl=5000,
             model=self.loader.loadModel('models/box.egg')
         )
         self.skyscrapers = {home_ss_id: home_ss}
@@ -218,7 +218,7 @@ class GameScene:
             dy = random.randint(5, 10)
             sx = random.randint(5, 12)
             sy = random.randint(5, 12)
-            sz = random.randint(2, 2) * 10
+            sz = random.randint(1, 4) * 10
             if random.random() > 0.5:
                 px = ss.pos.x + ss.scale.x/2 + sx/2 + dx
             else:
@@ -227,7 +227,7 @@ class GameScene:
                 py = ss.pos.y + ss.scale.y/2 + sy/2 + dy
             else:
                 py = ss.pos.y - ss.scale.y/2 - sy/2 - dy
-            print(px, py, sx, sy, sz)
+
             if not self.intersects_ss(Vec2(px, py), Vec2(sx, sy)):
                 ss_id = next(id_counter)
                 ss = Skyscraper(
@@ -235,13 +235,17 @@ class GameScene:
                     node_path=self.render.attachNewNode(BulletRigidBodyNode(f'Skyscraper#{ss_id}')),
                     pos=Vec3(px, py, 0),
                     scale=Vec3(sx, sy, sz),
-                    ttl=50000,
+                    ttl=5000,
                     model=self.loader.loadModel('models/box.egg')
                 )
                 self.skyscrapers[ss_id] = ss
                 self.setup_skyscraper(ss)
 
-    def intersects_ss(self, pos, scale):
+    def intersects_ss(self, pos: Vec2, scale: Vec2):
+        for other in self.skyscrapers.values():
+            if (abs(pos.x - other.pos.x) * 2 < (scale.x + other.scale.x) and
+                abs(pos.y - other.pos.y) * 2 < (scale.y + other.scale.y)):
+                return True
         return False
 
     def on_player_hit_skyscraper(self, node):
