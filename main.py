@@ -224,6 +224,11 @@ class GameScene:
             relief=1,                          # sunken frame
         )
 
+    def fetch_model(self):
+        model = self.loader.loadModel(f'OBJ format/building-skyscraper-{random.choice(["a", "b", "c", "d", "e"])}.obj')
+        # model = self.loader.loadModel('OBJ format/building-skyscraper-b.obj')
+        return model
+
     def setup_collisions(self):
         self.current_collisions = set()
 
@@ -257,6 +262,13 @@ class GameScene:
         self.ground_n.addShape(BulletPlaneShape(Vec3(0, 0, 1), 0))
         self.ground_np = self.render.attachNewNode(self.ground_n)
         self.ground_np.setPos(0, 0, 0)
+        fog = Fog("ground-fog")
+        fog.setColor(0.5, 0.6, 0.7)   
+        fog.setExpDensity(0.03)     
+        # self.ground_np.attachNewNode(fog)  
+
+        self.render.setFog(fog)
+
         ground_cm = CardMaker('ground_card')
         ground_cm.setFrame(-500, 500, -500, 500) 
         ground_vis = self.ground_np.attachNewNode(ground_cm.generate())
@@ -299,7 +311,7 @@ class GameScene:
             pos=Vec3(0, 0, 0),
             scale=Vec3(20, 30, 30),
             ttl=5,
-            model=self.loader.loadModel('b2.egg'),
+            model=self.fetch_model(),
             powerup=None
         )
         home_ss.model.setHpr(0, 90, 0)
@@ -314,7 +326,11 @@ class GameScene:
         ss_node.addShape(ss_shape)
         ss.node_path.setPos(ss.pos.x, ss.pos.y, ss.scale.z/2)
         self.world.attachRigidBody(ss_node)
-        ss.model.setScale(ss.scale.x/1.36, ss.scale.z/4.48, ss.scale.y/1.36)
+        bounds = ss.model.getTightBounds()
+        bx = abs(bounds[1].x - bounds[0].x)
+        by = abs(bounds[1].y - bounds[0].y)
+        bz = abs(bounds[1].z - bounds[0].z)
+        ss.model.setScale(ss.scale.x/bx, ss.scale.z/bz, ss.scale.y/by)
         ss.model.reparentTo(ss.node_path)
         ss.model.setPos(0, 0, -ss.scale.z/2)
 
@@ -455,7 +471,7 @@ class GameScene:
                     pos=Vec3(px, py, 0),
                     scale=Vec3(sx, sy, sz),
                     ttl=5,
-                    model=self.loader.loadModel('b2.egg'),
+                    model=self.fetch_model(),
                     powerup=random.choice([None, *PowerupTypes])
                 )
                 ss.model.setHpr(0, 90, 0)
