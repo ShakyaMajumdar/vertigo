@@ -1,5 +1,7 @@
 # VERTIGO - A PyWeek 40 Entry
 
+![logo](assets/banner.png)
+
 Leap between the skyscrapers and survive as long as you can! 
 Skyscrapers explode a few seconds after you first touch them.
 
