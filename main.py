@@ -16,6 +16,7 @@ from panda3d.core import Vec2, Vec3, CardMaker, TextureStage, DirectionalLight, 
 
 loadPrcFileData("", "win-size 1280 720")   
 loadPrcFileData("", "window-title VERTIGO")
+loadPrcFileData("", "icon-filename assets/icon.ico")
 
 id_counter = itertools.count()
 
@@ -194,7 +195,7 @@ class GameScene:
         debug_node.showBoundingBoxes(True)
         debug_node.showNormals(True)
         debug_np = self.render.attachNewNode(debug_node)
-        debug_np.show()   
+        # debug_np.show()   
         self.world.setDebugNode(debug_np.node())
         self.setup_window()
         self.setup_ui()
@@ -225,7 +226,7 @@ class GameScene:
         )
 
     def fetch_model(self):
-        model = self.loader.loadModel(f'OBJ format/building-skyscraper-{random.choice(["a", "b", "c", "d", "e"])}.obj')
+        model = self.loader.loadModel(f'assets/building-skyscraper-{random.choice(["a", "b", "c", "d", "e"])}.obj')
         # model = self.loader.loadModel('OBJ format/building-skyscraper-b.obj')
         return model
 
@@ -274,7 +275,7 @@ class GameScene:
         ground_vis = self.ground_np.attachNewNode(ground_cm.generate())
         ground_vis.setHpr(0, -90, 0)   
         ground_vis.setPos(0, 0, 0) 
-        ground_tex = self.loader.loadTexture("maps/grid.rgb")  
+        ground_tex = self.loader.loadTexture("assets/Textures/grid.rgb")  
         ground_vis.setTexture(ground_tex)
         ground_vis.setTexScale(TextureStage.getDefault(), 50, 50)
         self.world.attachRigidBody(self.ground_n)
